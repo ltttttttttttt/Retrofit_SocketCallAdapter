@@ -1,2 +1,3 @@
 # Retrofit_SocketCallAdapter
 Retrofit可以直接使用OkSocket来进行网络请求,Retrofit内的东西都不需要修改,只需要将OkHttpClient换成此即可
+让你像使用Http请求般使用Socket请求,并且可以使项目在Http和Socket间无缝切换
