@@ -11,4 +11,5 @@ java {
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.4.30"
     implementation "com.github.ltttttttttttt:retrofit:1.2.5"
+    implementation 'com.tonystark.android:socket:4.2.3'
 }

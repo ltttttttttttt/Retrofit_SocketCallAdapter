@@ -1,5 +1,5 @@
 buildscript {
-    val kotlin_version by extra("1.4.21")
+    val kotlin_version by extra("1.4.30")
     repositories {
         maven("http://maven.aliyun.com/nexus/content/groups/public/")
         google()
@@ -7,7 +7,7 @@ buildscript {
     }
     dependencies {
         classpath("com.android.tools.build:gradle:4.1.1")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.4.20")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.4.30")
     }
 }
 
