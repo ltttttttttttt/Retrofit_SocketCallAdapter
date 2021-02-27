@@ -25,14 +25,6 @@ import java.util.concurrent.atomic.AtomicInteger
 object InitRetrofit {
 
     internal fun initHttpFunctions(): HttpFunctions {
-//        val builder = OkHttpClient.Builder()
-//        builder.connectTimeout(30L, TimeUnit.SECONDS)
-//                .readTimeout(30L, TimeUnit.SECONDS)
-//                .writeTimeout(30L, TimeUnit.SECONDS)
-//                .connectionPool(ConnectionPool(5, 300, TimeUnit.SECONDS))
-//
-//        val client = builder.build()
-
         //OkSocket管理器
         val manager = OkSocket.open(ConnectionInfo("127.0.0.1", 1234))
         //配置
@@ -69,7 +61,6 @@ object InitRetrofit {
         val retrofit: Retrofit = Retrofit.Builder()
                 .baseUrl(HttpConfig.ROOT_URL.toString())
                 .addConverterFactory(GsonConverterFactory.create())
-//                .client(client)
                 .callFactory(object : SocketCallAdapter(manager) {
                     override fun getResponseId(data: OriginalData): Int? {
                         val jb = JSONObject(String(data.bodyBytes))

@@ -10,6 +10,7 @@ import okhttp3.Call
 import okhttp3.FormBody
 import okhttp3.Request
 import retrofit2.Invocation
+import java.io.IOException
 import java.net.SocketTimeoutException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
@@ -77,14 +78,6 @@ abstract class SocketCallAdapter(private val manager: IConnectionManager) : Call
         runnable.run()
     }
 
-    /**
-     * 销毁自身并和Socket解除绑定
-     */
-    fun destroy(): SocketCallAdapter {
-        manager.unRegisterReceiver(receiver)
-        return this
-    }
-
     fun setHttpProxy(httpProxy: Any): SocketCallAdapter {
         this.httpProxy = httpProxy
         return this
@@ -106,6 +99,26 @@ abstract class SocketCallAdapter(private val manager: IConnectionManager) : Call
     fun setThreadPoolExecutor(threadPoolExecutor: ExecutorService): SocketCallAdapter {
         this.threadPoolExecutor = threadPoolExecutor
         return this
+    }
+
+    /**
+     * 销毁自身并和Socket解除绑定
+     */
+    fun destroy(): SocketCallAdapter {
+        manager.unRegisterReceiver(receiver)
+        cancelAllListener()
+        return this
+    }
+
+    /**
+     * 取消所有无效的回调,用于重新连接socket
+     * 可以在重新连接后调用,将之前已经不可能收到的回调清除掉
+     */
+    fun cancelAllListener() {
+        listenerMap.whileThis {
+            it.value.second(ByteArray(0), IOException("Canceled"))
+            true
+        }
     }
 
     override fun newCall(request: Request): Call {
