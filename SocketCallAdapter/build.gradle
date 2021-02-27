@@ -10,6 +10,6 @@ java {
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.4.30"
-    api "com.github.ltttttttttttt:retrofit:1.2.5"
+    api "com.github.ltttttttttttt:retrofit:1.2.6"
     api 'com.tonystark.android:socket:4.2.3'
 }

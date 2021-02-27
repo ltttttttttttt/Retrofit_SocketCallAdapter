@@ -1,8 +1,6 @@
 package com.lt.retrofit.sca.test.http
 
-import com.google.gson.Gson
 import com.lt.retrofit.sca.test.config.HttpConfig
-import com.lt.retrofit.sca.test.model.PulseData
 import com.lt.retrofit.sca.test.model.TcpSendData
 import com.lt.retrofit.sca.test.util.ByteUtils
 import com.lt.retrofit.socketcalladapter.SocketCallAdapter
@@ -16,7 +14,6 @@ import com.xuhao.didi.socket.client.sdk.client.action.SocketActionAdapter
 import org.json.JSONObject
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import java.lang.reflect.Type
 import java.nio.ByteOrder
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -66,19 +63,18 @@ object InitRetrofit {
         //连接socket
         manager.connect()
         val mId = AtomicInteger(0)
-        val gson = Gson()
+
+        val r2 = Retrofit.Builder().baseUrl(HttpConfig.ROOT_URL.toString()).build().create(HttpFunctions::class.java)
 
         val retrofit: Retrofit = Retrofit.Builder()
                 .baseUrl(HttpConfig.ROOT_URL.toString())
                 .addConverterFactory(GsonConverterFactory.create())
 //                .client(client)
                 .callFactory(object : SocketCallAdapter(manager) {
-                    override fun getResponseIdAndAny(data: OriginalData, getTypeFun: (id: Int) -> Type?): Pair<Int, Any?>? {
+                    override fun getResponseId(data: OriginalData): Int? {
                         val jb = JSONObject(String(data.bodyBytes))
                         if (!jb.has("id")) return null
-                        val id = jb.getInt("id")
-                        val type = getTypeFun(id) ?: return null
-                        return id to gson.fromJson(jb.optString("body"), type)
+                        return jb.getInt("id")
                     }
 
                     override fun socketIsConnect(): Boolean = manager.isConnect
@@ -89,7 +85,7 @@ object InitRetrofit {
                         returns(data, id)
                     }
 
-                })
+                }.setHttpProxy(r2))
                 .build()
 
         return retrofit.create(HttpFunctions::class.java)

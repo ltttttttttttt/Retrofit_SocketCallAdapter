@@ -1,6 +1,5 @@
 package com.lt.retrofit.socketcalladapter
 
-import com.lt.retrofit.socketcalladapter.util.Pair3
 import com.lt.retrofit.socketcalladapter.util.whileThis
 import com.xuhao.didi.core.iocore.interfaces.ISendable
 import com.xuhao.didi.core.pojo.OriginalData
@@ -8,8 +7,9 @@ import com.xuhao.didi.socket.client.sdk.client.ConnectionInfo
 import com.xuhao.didi.socket.client.sdk.client.action.SocketActionAdapter
 import com.xuhao.didi.socket.client.sdk.client.connection.IConnectionManager
 import okhttp3.Call
+import okhttp3.FormBody
 import okhttp3.Request
-import java.lang.reflect.Type
+import retrofit2.Invocation
 import java.net.SocketTimeoutException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
@@ -19,34 +19,35 @@ import java.util.concurrent.ExecutorService
  * effect : 构造出用于请求Socket的Call,可以直接以Retrofit的方式使用
  * warning: 返回的Call会回调(或抛出)以下异常:
  *              1.SocketTimeoutException:表示网络请求超时
- *              2.NullPointerException:表示返回的数据为空
- *              3.CancellationException:表示由于重新连接了,所以之前的回调都变为了无效回调(因为收不到相应的消息了),所以表示其被取消
- *              4.其他非主观异常
+ *              2.todo CancellationException:表示由于重新连接了,所以之前的回调都变为了无效回调(因为收不到相应的消息了),所以表示其被取消
+ *              3.其他非主观异常
  */
 abstract class SocketCallAdapter(private val manager: IConnectionManager) : Call.Factory {
-    //回调的map,超时x秒 Map<请求id,Pair<插入时间,返回对象的type,回调(对象,异常)>>
-    private val listenerMap = ConcurrentHashMap<Int, Pair3<Long, Type, (Any?, Throwable?) -> Unit>>()
-
     //用于接收OkSocket返回的数据
     private val receiver = object : SocketActionAdapter() {
         override fun onSocketReadResponse(info: ConnectionInfo?, action: String?, data: OriginalData?) {
             handlerResponse(data)
         }
     }
+
+    //回调的map,超时x秒 Map<请求id,Pair<插入时间,回调(返回的字节数据,异常)>>
+    private val listenerMap = ConcurrentHashMap<Int, Pair<Long, (ByteArray, Throwable?) -> Unit>>()
     internal var threadPoolExecutor: ExecutorService? = null//内部使用的子线程线程池
-    internal var netTimeOut = 30000L//网络超时时间
+    internal var netTimeOut = 30000L//网络超时时间,默认半分钟
+    private val encodedNamesField by lazy { FormBody::class.java.getDeclaredField("encodedNames").apply { isAccessible = true } }//post的keys反射对象
+    private val encodedValuesField by lazy { FormBody::class.java.getDeclaredField("encodedValues").apply { isAccessible = true } }//post的values反射对象
+    private var httpProxy: Any? = null//http的动态代理对象,如果出现了Socket无法处理的方法,比如上传图片,就会使用此动态代理对象来进行http请求,没设置则抛异常
 
     init {
         manager.registerReceiver(receiver)
     }
 
     /**
-     * 从响应数据中获取请求id和相应的返回对象
+     * 从响应数据中获取请求id
      * [data]OkSocket返回的字节数据
-     * [getTypeFun]调用其invoke方法通过id获取其对应需要生成的对象的Type
      * 如果返回null表示识别不了该数据(或该数据是推送,不是响应)
      */
-    abstract fun getResponseIdAndAny(data: OriginalData, getTypeFun: (id: Int) -> Type?): Pair<Int, Any?>?
+    abstract fun getResponseId(data: OriginalData): Int?
 
     /**
      * 返回当前Socket在逻辑意义上是否和服务端联通了
@@ -79,8 +80,14 @@ abstract class SocketCallAdapter(private val manager: IConnectionManager) : Call
     /**
      * 销毁自身并和Socket解除绑定
      */
-    fun destroy() {
+    fun destroy(): SocketCallAdapter {
         manager.unRegisterReceiver(receiver)
+        return this
+    }
+
+    fun setHttpProxy(httpProxy: Any): SocketCallAdapter {
+        this.httpProxy = httpProxy
+        return this
     }
 
     /**
@@ -102,47 +109,57 @@ abstract class SocketCallAdapter(private val manager: IConnectionManager) : Call
     }
 
     override fun newCall(request: Request): Call {
-        if (false)
-            return SocketCall(
-                    manager,
-                    this,
-                    request.url().toString(),
-                    hashMapOf(),
-                    String::class.java
-            )
-
-        println("******************************************************************")
-        println("url=" + request.url())
-        println("method=" + request.method())
-        request.headers().names().forEach {
-            println("headers=$it:${request.header(it)}")
+        val body = request.body()
+        val method = request.method()
+        val url = request.url().toString()
+        val map = HashMap<String, Any>()
+        if (method == "POST" && body is FormBody) {
+            val keys = encodedNamesField.get(body) as? List<String?>
+            val values = encodedValuesField.get(body) as? List<String?>
+            keys?.forEachIndexed { index, s ->
+                map[s ?: ""] = values?.getOrNull(index) ?: ""
+            }
+        } else if (method == "GET") {
+            url.split('?')
+                    .getOrNull(1)
+                    ?.split('&')
+                    ?.forEach {
+                        val split = it.split('=')
+                        map[split[0]] = split.getOrNull(1) ?: ""
+                    }
+        } else {
+            if (httpProxy == null)
+                throw IllegalStateException("出现此异常是因为出现了Socket无法处理的操作(比如上传图片),\n" +
+                        "您可以通过调用[SocketCallAdapter#setHttpProxy]将Retrofit使用OkHttp请求生成的动态代理对象(一般是通过此方法生成retrofit.create)传入,即可将无法处理的操作转到Http请求上,\n" +
+                        "如果您可以处理此操作的话,可以通过提交分支的方式在Github上帮我增加相应的处理代码,\n" +
+                        "如果您无法处理,但又必须使用Socket的话,可以到Github上提Issues.\n" +
+                        "url=$url\n" +
+                        "本项目GitHub地址如下:https://github.com/ltttttttttttt/Retrofit_SocketCallAdapter")
+            val tag = request.tag(Invocation::class.java)!!
+            return OkHttpCallWithRetrofitCall(tag.method().invoke(httpProxy, *tag.arguments().toTypedArray()) as retrofit2.Call<Any?>)
         }
-        println("body=" + request.body().toString())
-        val declaredField = request::class.java.getDeclaredField("tags")
-        declaredField.isAccessible = true
-        (declaredField.get(request) as Map<Any, Any>).entries.forEach {
-            println("tags=${it.key}:${it.value}")
-        }
-        return null!!
+        return SocketCall(
+                manager,
+                this,
+                url,
+                map
+        )
     }
 
     //处理收到的数据(只处理有回调的)
     internal fun handlerResponse(data: OriginalData?) {
         data ?: return
         try {
-            val (id, responseAny) = getResponseIdAndAny(data) {
-                listenerMap[it]?.two
-            } ?: return
-            // TODO by lt 2021/2/26 18:00 想想日志应该怎么打印
+            val id = getResponseId(data) ?: return
             //处理回调
-            val (_, _, listener) = listenerMap.remove(id) ?: return
+            val (_, listener) = listenerMap.remove(id) ?: return
             try {
                 handlerCallbackRunnable {
-                    if (responseAny == null) listener(null, NullPointerException()) else listener(responseAny, null)
+                    listener(data.bodyBytes, null)
                 }
             } catch (t: Throwable) {
                 handlerCallbackRunnable {
-                    listener(null, t)
+                    listener(ByteArray(0), t)
                 }
             }
             handlerTimeOutedListener()
@@ -152,9 +169,9 @@ abstract class SocketCallAdapter(private val manager: IConnectionManager) : Call
     }
 
     //添加回调
-    internal fun addListener(id: Int, type: Type, listener: (Any?, Throwable?) -> Unit) {
+    internal fun addListener(id: Int, listener: (ByteArray, Throwable?) -> Unit) {
         handlerTimeOutedListener()
-        listenerMap[id] = Pair3(System.currentTimeMillis(), type, listener)
+        listenerMap[id] = Pair(System.currentTimeMillis(), listener)
     }
 
     //移除回调
@@ -167,9 +184,9 @@ abstract class SocketCallAdapter(private val manager: IConnectionManager) : Call
     internal fun handlerTimeOutedListener() {
         val time = System.currentTimeMillis()
         listenerMap.whileThis {
-            if (time - it.value.one > netTimeOut) {
+            if (time - it.value.first > netTimeOut) {
                 handlerCallbackRunnable {
-                    it.value.three(null, SocketTimeoutException())
+                    it.value.second(ByteArray(0), SocketTimeoutException())
                 }
                 return@whileThis true
             }

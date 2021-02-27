@@ -7,4 +7,4 @@ import android.util.Log
  * effect :
  * warning:
  */
-fun Any.e() = Log.e("lllttt", this.toString())
+fun Any?.e() = Log.e("lllttt", this.toString())

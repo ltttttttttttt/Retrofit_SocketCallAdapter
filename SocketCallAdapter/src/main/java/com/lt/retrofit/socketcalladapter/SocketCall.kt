@@ -1,20 +1,21 @@
 package com.lt.retrofit.socketcalladapter
 
 import com.xuhao.didi.socket.client.sdk.client.connection.IConnectionManager
-import okhttp3.Call
-import okhttp3.Request
-import okhttp3.Response
+import okhttp3.*
 import okio.Timeout
-import java.lang.reflect.Type
 import java.net.SocketTimeoutException
 import java.util.concurrent.Executors
 
+/**
+ * creator: lt  2021/2/27  lt.dygzs@qq.com
+ * effect : 用于Socket请求的Call
+ * warning:
+ */
 internal class SocketCall(
         private val manager: IConnectionManager,
         private val adapter: SocketCallAdapter,
         private val url: String,
-        private val tMap: HashMap<String, Any>,
-        private val trueReturnType: Type) : Call {
+        private val tMap: HashMap<String, Any>) : Call {
     private var canceled = false
     private var isExecuted = false//是否运行过,一个call对象只允许运行一次
     private var requestId = 0
@@ -75,12 +76,12 @@ internal class SocketCall(
         checkConnect()
         if (isExecuted) throw IllegalStateException("只能执行一次")
         isExecuted = true
-        var a: Any? = null
+        var a: ByteArray? = null
         var t: Throwable? = null
         var notFinish = true
         adapter.createSendDataAndId(url, tMap) { data, id ->
             requestId = id
-            adapter.addListener(requestId, trueReturnType) { any: Any?, throwable: Throwable? ->
+            adapter.addListener(requestId) { any: ByteArray, throwable: Throwable? ->
                 a = any
                 t = throwable
                 notFinish = false
@@ -100,14 +101,19 @@ internal class SocketCall(
             }
         }
         t?.let { throw it }
-        TODO()
-//        return if (a == null) throw NullPointerException() else Response.success(a as T)
+        return Response.Builder()
+                .code(200)
+                .request(Request.Builder().url(url).build())
+                .protocol(Protocol.HTTP_2)
+                .message("")
+                .body(ResponseBody.create(MediaType.get("text/plain"), a ?: ByteArray(0)))
+                .build()
     }
 
     /**
      * 异步请求
      */
-    override fun enqueue(callback: okhttp3.Callback) {
+    override fun enqueue(callback: Callback) {
         checkConnect {
             if (!it) {
                 adapter.handlerCallbackRunnable {
@@ -119,12 +125,14 @@ internal class SocketCall(
             isExecuted = true
             adapter.createSendDataAndId(url, tMap) { data, id ->
                 requestId = id
-                adapter.addListener(requestId, trueReturnType) { any: Any?, throwable: Throwable? ->
-                    TODO()
-//                    if (any != null)
-//                        callback.onResponse(this, Response.success(any as T))
-//                    else
-//                        callback.onFailure(this, throwable ?: NullPointerException())
+                adapter.addListener(requestId) { any: ByteArray, throwable: Throwable? ->
+                    callback.onResponse(this, Response.Builder()
+                            .code(200)
+                            .request(Request.Builder().url(url).build())
+                            .protocol(Protocol.HTTP_2)
+                            .message("")
+                            .body(ResponseBody.create(MediaType.get("text/plain"), """{"code":345}""".toByteArray()))
+                            .build())
                 }
                 //发送请求
                 manager.send(data)
@@ -132,7 +140,7 @@ internal class SocketCall(
         }
     }
 
-    override fun clone(): Call = SocketCall(manager, adapter, url, tMap, trueReturnType)
+    override fun clone(): Call = SocketCall(manager, adapter, url, tMap)
 
     override fun isExecuted(): Boolean = isExecuted
 
