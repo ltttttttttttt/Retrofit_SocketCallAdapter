@@ -18,10 +18,7 @@ import java.util.concurrent.ExecutorService
 /**
  * creator: lt  2021/2/26  lt.dygzs@qq.com
  * effect : 构造出用于请求Socket的Call,可以直接以Retrofit的方式使用
- * warning: 返回的Call会回调(或抛出)以下异常:
- *              1.SocketTimeoutException:表示网络请求超时
- *              2.todo CancellationException:表示由于重新连接了,所以之前的回调都变为了无效回调(因为收不到相应的消息了),所以表示其被取消
- *              3.其他非主观异常
+ * warning:
  */
 abstract class SocketCallAdapter(private val manager: IConnectionManager) : Call.Factory {
     //用于接收OkSocket返回的数据
