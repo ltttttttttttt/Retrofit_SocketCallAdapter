@@ -38,15 +38,15 @@ dependencies {
     implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar", "*.aar"))))
 
     //网络请求工具类
-    implementation("com.github.ltttttttttttt:retrofit:1.2.5")
+//    implementation("com.github.ltttttttttttt:retrofit:1.2.5")
     //网络请求
-    implementation("com.squareup.okhttp3:okhttp:3.14.9")
+//    implementation("com.squareup.okhttp3:okhttp:3.14.9")
     //kotlin
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.4.30")
     //kotlin反射
     implementation(kotlin("reflect"))
     //协程
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.4.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.4.1")
     //gson序列化适配器
     implementation("com.squareup.retrofit2:converter-gson:2.7.0") {
         exclude("com.squareup.retrofit2", "retrofit")//使其不自动依赖retrofit // exclude module: 'retrofit'
