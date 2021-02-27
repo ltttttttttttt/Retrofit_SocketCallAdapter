@@ -48,12 +48,12 @@ abstract class SocketCallAdapter(private val manager: IConnectionManager) : Call
     abstract fun getResponseId(data: OriginalData): Int?
 
     /**
-     * 返回当前Socket在逻辑意义上是否和服务端联通了
+     * 返回当前Socket在逻辑意义上是否和服务端连通了
      */
     abstract fun socketIsConnect(): Boolean
 
     /**
-     * 根据url和请求参数
+     * 根据url和请求参数生成用于发送的数据和Id
      * [url]请求的url
      * [requestParametersMap]请求参数的map
      * [returns]把请求对象和id创建完成后调用其invoke方法表示已经创建完成
@@ -64,6 +64,7 @@ abstract class SocketCallAdapter(private val manager: IConnectionManager) : Call
      * 当网络断开后自动连接网络,可以重写此方法来控制连接流程
      */
     open fun connectSocket() {
+        cancelAllListener()
         manager.connect()
     }
 
@@ -75,6 +76,9 @@ abstract class SocketCallAdapter(private val manager: IConnectionManager) : Call
         runnable.run()
     }
 
+    /**
+     * 设置http的动态代理对象,如果出现了Socket无法处理的方法,比如上传图片,就会使用此动态代理对象来进行http请求,没设置则抛异常
+     */
     fun setHttpProxy(httpProxy: Any): SocketCallAdapter {
         this.httpProxy = httpProxy
         return this
