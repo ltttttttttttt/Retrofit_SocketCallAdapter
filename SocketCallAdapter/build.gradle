@@ -2,6 +2,8 @@ plugins {
     id 'java-library'
     id 'kotlin'
 }
+apply plugin: 'com.github.dcendents.android-maven'
+group = 'com.github.ltttttttttttt'
 
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
