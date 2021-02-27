@@ -76,13 +76,13 @@ internal class SocketCall(
         checkConnect()
         if (isExecuted) throw IllegalStateException("只能执行一次")
         isExecuted = true
-        var a: ByteArray? = null
+        var bytes: ByteArray? = null
         var t: Throwable? = null
         var notFinish = true
         adapter.createSendDataAndId(url, tMap) { data, id ->
             requestId = id
             adapter.addListener(requestId) { any: ByteArray, throwable: Throwable? ->
-                a = any
+                bytes = any
                 t = throwable
                 notFinish = false
             }
@@ -106,7 +106,7 @@ internal class SocketCall(
                 .request(Request.Builder().url(url).build())
                 .protocol(Protocol.HTTP_2)
                 .message("")
-                .body(ResponseBody.create(MediaType.get("text/plain"), a ?: ByteArray(0)))
+                .body(ResponseBody.create(MediaType.get("text/plain"), bytes ?: ByteArray(0)))
                 .build()
     }
 
@@ -125,13 +125,13 @@ internal class SocketCall(
             isExecuted = true
             adapter.createSendDataAndId(url, tMap) { data, id ->
                 requestId = id
-                adapter.addListener(requestId) { any: ByteArray, throwable: Throwable? ->
+                adapter.addListener(requestId) { bytes: ByteArray, throwable: Throwable? ->
                     callback.onResponse(this, Response.Builder()
                             .code(200)
                             .request(Request.Builder().url(url).build())
                             .protocol(Protocol.HTTP_2)
                             .message("")
-                            .body(ResponseBody.create(MediaType.get("text/plain"), """{"code":345}""".toByteArray()))
+                            .body(ResponseBody.create(MediaType.get("text/plain"), bytes))
                             .build())
                 }
                 //发送请求
