@@ -1,8 +1,10 @@
 buildscript {
     val kotlin_version by extra("1.4.30")
     repositories {
-        maven("http://maven.aliyun.com/nexus/content/groups/public/")
+        jcenter()
+        maven("https://jitpack.io")
         google()
+        maven("http://maven.aliyun.com/nexus/content/groups/public/")
         maven("https://dl.bintray.com/umsdk/release")
     }
     dependencies {
@@ -14,10 +16,10 @@ buildscript {
 
 allprojects {
     repositories {
-        maven("http://maven.aliyun.com/nexus/content/groups/public/")
         google()
         jcenter()
         maven("https://jitpack.io")
+        maven("http://maven.aliyun.com/nexus/content/groups/public/")
         maven("https://dl.bintray.com/umsdk/release")
     }
 }
