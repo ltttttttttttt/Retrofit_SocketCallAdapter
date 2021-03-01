@@ -12,6 +12,7 @@ import okhttp3.Request
 import retrofit2.Invocation
 import java.io.IOException
 import java.net.SocketTimeoutException
+import java.net.URLDecoder
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
 
@@ -132,7 +133,7 @@ abstract class SocketCallAdapter(private val manager: IConnectionManager) : Call
             val keys = encodedNamesField.get(body) as? List<String?>
             val values = encodedValuesField.get(body) as? List<String?>
             keys?.forEachIndexed { index, s ->
-                map[s ?: ""] = values?.getOrNull(index) ?: ""
+                map[s ?: ""] = URLDecoder.decode(values?.getOrNull(index) ?: "", "UTF-8")
             }
         } else if (method == "GET") {
             url.split('?')
@@ -140,7 +141,7 @@ abstract class SocketCallAdapter(private val manager: IConnectionManager) : Call
                     ?.split('&')
                     ?.forEach {
                         val split = it.split('=')
-                        map[split[0]] = split.getOrNull(1) ?: ""
+                        map[split[0]] = URLDecoder.decode(split.getOrNull(1) ?: "", "UTF-8")
                     }
         } else {
             if (httpProxy == null)
