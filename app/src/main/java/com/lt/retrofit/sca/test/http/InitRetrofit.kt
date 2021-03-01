@@ -62,10 +62,10 @@ object InitRetrofit {
                 .baseUrl(HttpConfig.ROOT_URL.toString())
                 .addConverterFactory(GsonConverterFactory.create())
                 .callFactory(object : SocketCallAdapter(manager) {
-                    override fun getResponseId(data: OriginalData): Int? {
+                    override fun getResponseIdAndBodyBytes(data: OriginalData): Pair<Int, ByteArray>? {
                         val jb = JSONObject(String(data.bodyBytes))
                         if (!jb.has("id")) return null
-                        return jb.getInt("id")
+                        return jb.getInt("id") to jb.optString("body").toByteArray()
                     }
 
                     override fun socketIsConnect(): Boolean = manager.isConnect

@@ -44,8 +44,9 @@ abstract class SocketCallAdapter(private val manager: IConnectionManager) : Call
      * 从响应数据中获取请求id
      * [data]OkSocket返回的字节数据
      * 如果返回null表示识别不了该数据(或该数据是推送,不是响应)
+     * 返回对应的id和数据对应的字节数组
      */
-    abstract fun getResponseId(data: OriginalData): Int?
+    abstract fun getResponseIdAndBodyBytes(data: OriginalData): Pair<Int, ByteArray>?
 
     /**
      * 返回当前Socket在逻辑意义上是否和服务端连通了
@@ -164,9 +165,9 @@ abstract class SocketCallAdapter(private val manager: IConnectionManager) : Call
     internal fun handlerResponse(data: OriginalData?) {
         data ?: return
         try {
-            val id = getResponseId(data) ?: return
+            val id = getResponseIdAndBodyBytes(data) ?: return
             //处理回调
-            val (_, listener) = listenerMap.remove(id) ?: return
+            val (_, listener) = listenerMap.remove(id.first) ?: return
             try {
                 handlerCallbackRunnable {
                     listener(data.bodyBytes, null)
