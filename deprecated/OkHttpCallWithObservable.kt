@@ -1,4 +1,5 @@
-package com.lt.retrofit.socketcalladapter
+/*
+package com.lt.retrofit.socketcalladapter.deprecated
 
 import io.reactivex.Observable
 import io.reactivex.Observer
@@ -8,11 +9,13 @@ import okhttp3.*
 import okio.Timeout
 import java.io.IOException
 
+*/
 /**
  * creator: lt  2021/2/27  lt.dygzs@qq.com
  * effect : 用于包装Observable为OkHttpCall
  * warning:
- */
+ *//*
+
 internal class OkHttpCallWithObservable(
         private val observable: Observable<Any?>,
         private val adapter: SocketCallAdapter,
@@ -45,7 +48,9 @@ internal class OkHttpCallWithObservable(
                                             .request(Request.Builder().url("").build())
                                             .protocol(Protocol.HTTP_2)
                                             .message("")
-                                            .body(ResponseBody.create(MediaType.get("text/plain"),/*转成json*/))//方案太耦合了
+                                            .body(ResponseBody.create(MediaType.get("text/plain"),*/
+/*转成json*//*
+))//方案太耦合了
                                             .build()
                             )
                         }
@@ -72,4 +77,4 @@ internal class OkHttpCallWithObservable(
     override fun isCanceled(): Boolean = isCancelled
 
     override fun timeout(): Timeout = Timeout.NONE
-}
+}*/

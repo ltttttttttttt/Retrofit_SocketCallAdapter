@@ -1,0 +1,6 @@
+方案太耦合了,所以该方案被废弃
+该方案将所有Socket操作都需要转成OkHttp.Call并将数据转为Response,可能会带来意想不到的后果
+且需要自己处理RxJava等方案无法复用RxJava等提供的适配器
+而且Response只支持字节数组和字符串,不支持对象
+
+但是该方案支持原生的Retrofit
