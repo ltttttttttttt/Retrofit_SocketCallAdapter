@@ -12,8 +12,11 @@ import java.io.IOException
  * effect : 用于包装RetrofitCall为OkHttpCall
  * warning:
  */
-internal class OkHttpCallWithRetrofitCall(private val call: retrofit2.Call<Any?>) : Call {
-    override fun clone(): Call = OkHttpCallWithRetrofitCall(call)
+internal class OkHttpCallWithRetrofitCall(
+        private val call: retrofit2.Call<Any?>,
+        private val adapter: SocketCallAdapter
+) : Call {
+    override fun clone(): Call = OkHttpCallWithRetrofitCall(call, adapter)
 
     override fun request(): Request = call.request()
 
@@ -22,11 +25,15 @@ internal class OkHttpCallWithRetrofitCall(private val call: retrofit2.Call<Any?>
     override fun enqueue(responseCallback: Callback) {
         call.enqueue(object : retrofit2.Callback<Any?> {
             override fun onResponse(call: retrofit2.Call<Any?>, response: retrofit2.Response<Any?>) {
-                responseCallback.onResponse(this@OkHttpCallWithRetrofitCall, response.raw())
+                adapter.handlerCallbackRunnable {
+                    responseCallback.onResponse(this@OkHttpCallWithRetrofitCall, response.raw())
+                }
             }
 
             override fun onFailure(call: retrofit2.Call<Any?>, t: Throwable) {
-                responseCallback.onFailure(this@OkHttpCallWithRetrofitCall, IOException(t))
+                adapter.handlerCallbackRunnable {
+                    responseCallback.onFailure(this@OkHttpCallWithRetrofitCall, IOException(t))
+                }
             }
         })
     }

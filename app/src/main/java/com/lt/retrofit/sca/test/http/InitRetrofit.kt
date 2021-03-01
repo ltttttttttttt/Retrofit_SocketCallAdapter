@@ -1,5 +1,7 @@
 package com.lt.retrofit.sca.test.http
 
+import android.os.Handler
+import android.os.Looper
 import com.lt.retrofit.sca.test.config.HttpConfig
 import com.lt.retrofit.sca.test.model.TcpSendData
 import com.lt.retrofit.sca.test.util.ByteUtils
@@ -11,6 +13,8 @@ import com.xuhao.didi.socket.client.sdk.OkSocket
 import com.xuhao.didi.socket.client.sdk.client.ConnectionInfo
 import com.xuhao.didi.socket.client.sdk.client.OkSocketOptions
 import com.xuhao.didi.socket.client.sdk.client.action.SocketActionAdapter
+import okhttp3.Call
+import okhttp3.Request
 import org.json.JSONObject
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -55,6 +59,7 @@ object InitRetrofit {
         //连接socket
         manager.connect()
         val mId = AtomicInteger(0)
+        val handler = Handler(Looper.getMainLooper())
 
         val r2 = Retrofit.Builder().baseUrl(HttpConfig.ROOT_URL.toString()).build().create(HttpFunctions::class.java)
 
@@ -62,21 +67,38 @@ object InitRetrofit {
                 .baseUrl(HttpConfig.ROOT_URL.toString())
                 .addConverterFactory(GsonConverterFactory.create())
                 .callFactory(object : SocketCallAdapter(manager) {
+
+                    //从服务器返回的数据中读取id和body数据
                     override fun getResponseIdAndBodyBytes(data: OriginalData): Pair<Int, ByteArray>? {
                         val jb = JSONObject(String(data.bodyBytes))
                         if (!jb.has("id")) return null
                         return jb.getInt("id") to jb.optString("body").toByteArray()
                     }
 
+                    //只要socket连接上就认为该socket通道是通的
                     override fun socketIsConnect(): Boolean = manager.isConnect
 
+                    //根据请求url和请求数据map来创建ISendable(OkSocket的请求数据类型)对象,并调用returns函数(为了支持异步)
                     override fun createSendDataAndId(url: String, requestParametersMap: HashMap<String, Any>, returns: (ISendable, Int) -> Unit) {
                         val id = mId.incrementAndGet()
                         val data = TcpSendData(id, url, requestParametersMap)
                         returns(data, id)
                     }
 
-                }.setHttpProxy(r2))
+                    //在子线程回调数据
+                    override fun handlerCallbackRunnable(runnable: Runnable) {
+                        handler.post(runnable)
+                    }
+
+                    //设置socket处理不了后http的请求代理对象为r2(这里没有判断Request的url和请求方法等,处理不了直接走http)
+                    //用户可以根据request来选择返回不同的动态代理对象,或者返回null来警告调用者
+                    override fun handlerOtherRequestReturnHttpProxy(request: Request): Any? = r2
+
+                    //如果使用了别的Call,比如Rxjava就需要将Observable转为Call(这里已经转过了)
+                    override fun handlerOtherRequestReturnCall(calls: Any, request: Request): Call? {
+                        return super.handlerOtherRequestReturnCall(calls, request)
+                    }
+                })
                 .build()
 
         return retrofit.create(HttpFunctions::class.java)
