@@ -165,12 +165,12 @@ abstract class SocketCallAdapter(private val manager: IConnectionManager) : Call
     internal fun handlerResponse(data: OriginalData?) {
         data ?: return
         try {
-            val id = getResponseIdAndBodyBytes(data) ?: return
+            val mData = getResponseIdAndBodyBytes(data) ?: return
             //处理回调
-            val (_, listener) = listenerMap.remove(id.first) ?: return
+            val (_, listener) = listenerMap.remove(mData.first) ?: return
             try {
                 handlerCallbackRunnable {
-                    listener(data.bodyBytes, null)
+                    listener(mData.second, null)
                 }
             } catch (t: Throwable) {
                 handlerCallbackRunnable {
