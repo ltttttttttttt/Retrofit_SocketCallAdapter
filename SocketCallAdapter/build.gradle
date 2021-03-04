@@ -12,7 +12,6 @@ java {
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.4.30"
-    api "com.github.ltttttttttttt:retrofit:1.2.6"
+    api "com.github.ltttttttttttt:retrofit:1.2.8-beta3"
     api 'com.tonystark.android:socket:4.2.3'
-    implementation 'io.reactivex.rxjava2:rxjava:2.1.9'
 }

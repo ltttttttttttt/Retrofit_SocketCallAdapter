@@ -1,8 +1,13 @@
 package com.lt.retrofit.socketcalladapter
 
+import com.lt.retrofit.socketcalladapter.util.getReturnData
 import com.xuhao.didi.socket.client.sdk.client.connection.IConnectionManager
-import okhttp3.*
 import okio.Timeout
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import retrofit2.Retrofit
+import java.lang.reflect.Method
 import java.net.SocketTimeoutException
 import java.util.concurrent.Executors
 
@@ -11,11 +16,14 @@ import java.util.concurrent.Executors
  * effect : 用于Socket请求的Call
  * warning:
  */
-internal class SocketCall(
+internal class SocketCall<T>(
         private val manager: IConnectionManager,
-        private val adapter: SocketCallAdapter,
+        private val adapter: SocketAdapter,
         private val url: String,
-        private val tMap: HashMap<String, Any>) : Call {
+        private val tMap: HashMap<String, Any>,
+        private val retrofit: Retrofit,
+        private val method: Method,
+) : Call<T> {
     private var canceled = false
     private var isExecuted = false//是否运行过,一个call对象只允许运行一次
     private var requestId = 0
@@ -72,7 +80,7 @@ internal class SocketCall(
     /**
      * 同步阻塞式请求
      */
-    override fun execute(): Response {
+    override fun execute(): Response<T> {
         checkConnect()
         if (isExecuted) throw IllegalStateException("只能执行一次")
         isExecuted = true
@@ -101,19 +109,13 @@ internal class SocketCall(
             }
         }
         t?.let { throw it }
-        return Response.Builder()
-                .code(200)
-                .request(Request.Builder().url(url).build())
-                .protocol(Protocol.HTTP_2)
-                .message("")
-                .body(ResponseBody.create(MediaType.get("text/plain"), bytes ?: ByteArray(0)))
-                .build()
+        return Response.success(bytes.getReturnData(retrofit, method)) as Response<T>
     }
 
     /**
      * 异步请求
      */
-    override fun enqueue(callback: Callback) {
+    override fun enqueue(callback: Callback<T>) {
         checkConnect {
             if (!it) {
                 adapter.handlerCallbackRunnable {
@@ -126,13 +128,7 @@ internal class SocketCall(
             adapter.createSendDataAndId(url, tMap) { data, id ->
                 requestId = id
                 adapter.addListener(requestId) { bytes: ByteArray, throwable: Throwable? ->
-                    callback.onResponse(this, Response.Builder()
-                            .code(200)
-                            .request(Request.Builder().url(url).build())
-                            .protocol(Protocol.HTTP_2)
-                            .message("")
-                            .body(ResponseBody.create(MediaType.get("text/plain"), bytes))
-                            .build())
+                    callback.onResponse(this, Response.success(bytes.getReturnData(retrofit, method)) as Response<T>)
                 }
                 //发送请求
                 manager.send(data)
@@ -140,7 +136,7 @@ internal class SocketCall(
         }
     }
 
-    override fun clone(): Call = SocketCall(manager, adapter, url, tMap)
+    override fun clone(): Call<T> = SocketCall(manager, adapter, url, tMap, retrofit, method)
 
     override fun isExecuted(): Boolean = isExecuted
 
@@ -152,7 +148,7 @@ internal class SocketCall(
 
     override fun isCanceled(): Boolean = canceled
 
-    override fun request(): Request? = null
+    override fun request() = null
 
     override fun timeout(): Timeout = Timeout.NONE
 

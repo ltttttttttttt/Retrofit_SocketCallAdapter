@@ -6,14 +6,9 @@ import com.xuhao.didi.core.pojo.OriginalData
 import com.xuhao.didi.socket.client.sdk.client.ConnectionInfo
 import com.xuhao.didi.socket.client.sdk.client.action.SocketActionAdapter
 import com.xuhao.didi.socket.client.sdk.client.connection.IConnectionManager
-import io.reactivex.Observable
-import okhttp3.Call
 import okhttp3.FormBody
-import okhttp3.Request
-import retrofit2.Invocation
 import java.io.IOException
 import java.net.SocketTimeoutException
-import java.net.URLDecoder
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
 
@@ -25,10 +20,10 @@ import java.util.concurrent.ExecutorService
  * [useNewReceiver]如果为true就在该类内部绑定一个新的receiver,数据可能会被处理多遍,较为浪费性能,但是不用进行配置
  *                  如果为false就需要用户手动在收到服务端数据推送后调用[handlerCallback]方法,可以优化性能
  */
-abstract class SocketCallAdapter(
+abstract class SocketAdapter(
         private val manager: IConnectionManager,
         private val useNewReceiver: Boolean = true,
-) : Call.Factory {
+) {
     //用于接收OkSocket返回的数据
     private val receiver = if (!useNewReceiver) null else object : SocketActionAdapter() {
         override fun onSocketReadResponse(info: ConnectionInfo?, action: String?, data: OriginalData?) {
@@ -86,34 +81,10 @@ abstract class SocketCallAdapter(
     }
 
     /**
-     * 处理Socket无法处理的Http请求
-     * 可以返回http的动态代理对象,如果出现了Socket无法处理的方法,比如上传图片,就会使用此动态代理对象来进行http请求
-     * 返回null则会抛异常
-     * 如果返回的动态代理也无法处理的话则会调用[handlerOtherRequestReturnCall]来进行处理成Call,如果处理不成则抛异常
-     * [request]请求响应
-     */
-    open fun handlerOtherRequestReturnHttpProxy(request: Request): Any? {
-        return null
-    }
-
-    /**
-     * 如果[handlerOtherRequestReturnHttpProxy]返回的动态代理可以处理对应的网络请求,但是返回的数据框架无法将其转为Call,则需要用户自行转为Call,否则抛异常
-     * [calls]retrofit各种请求的子类,比如Call<T>,Observable<T>等
-     * [request]请求响应
-     */
-    open fun handlerOtherRequestReturnCall(calls: Any, request: Request): Call? {
-        return when (calls) {
-            is retrofit2.Call<*> -> OkHttpCallWithRetrofitCall(calls as retrofit2.Call<Any?>, this)
-            is Observable<*> -> OkHttpCallWithObservable(calls as Observable<Any?>, this)
-            else -> null
-        }
-    }
-
-    /**
      * 设置网络请求超时时间
      * [time]超时时间,单位毫秒
      */
-    fun setNetTimeOut(time: Long): SocketCallAdapter {
+    fun setNetTimeOut(time: Long): SocketAdapter {
         netTimeOut = time
         return this
     }
@@ -122,7 +93,7 @@ abstract class SocketCallAdapter(
      * 设置内部使用的子线程的线程池,如果不设置则会使用默认线程池
      * [threadPoolExecutor]子线程线程池
      */
-    fun setThreadPoolExecutor(threadPoolExecutor: ExecutorService): SocketCallAdapter {
+    fun setThreadPoolExecutor(threadPoolExecutor: ExecutorService): SocketAdapter {
         this.threadPoolExecutor = threadPoolExecutor
         return this
     }
@@ -130,7 +101,7 @@ abstract class SocketCallAdapter(
     /**
      * 销毁自身并和Socket解除绑定
      */
-    fun destroy(): SocketCallAdapter {
+    fun destroy(): SocketAdapter {
         if (receiver != null)
             manager.unRegisterReceiver(receiver)
         cancelAllListener()
@@ -159,49 +130,6 @@ abstract class SocketCallAdapter(
             listener(bodyBytes, null)
         }
         handlerTimeOutedListener()
-    }
-
-    override fun newCall(request: Request): Call {
-        val body = request.body()
-        val method = request.method()
-        val url = request.url().toString()
-        val map = HashMap<String, Any>()
-        if (method == "POST" && body is FormBody) {
-            val keys = encodedNamesField.get(body) as? List<String?>
-            val values = encodedValuesField.get(body) as? List<String?>
-            keys?.forEachIndexed { index, s ->
-                map[s ?: ""] = URLDecoder.decode(values?.getOrNull(index) ?: "", "UTF-8")
-            }
-        } else if (method == "GET") {
-            url.split('?')
-                    .getOrNull(1)
-                    ?.split('&')
-                    ?.forEach {
-                        val split = it.split('=')
-                        map[split[0]] = URLDecoder.decode(split.getOrNull(1) ?: "", "UTF-8")
-                    }
-        } else {
-            val httpProxy = handlerOtherRequestReturnHttpProxy(request)
-            if (httpProxy != null) {
-                val tag = request.tag(Invocation::class.java)!!
-                val returnAny = tag.method().invoke(httpProxy, *tag.arguments().toTypedArray())
-                val call = handlerOtherRequestReturnCall(returnAny, request)
-                if (call != null)
-                    return call
-            }
-            throw IllegalStateException("出现此异常是因为出现了Socket无法处理的操作(比如上传图片),\n" +
-                    "您可以通过调用[SocketCallAdapter#setHttpProxy]将Retrofit使用OkHttp请求生成的动态代理对象(一般是通过此方法生成retrofit.create)传入,即可将无法处理的操作转到Http请求上,\n" +
-                    "如果您可以处理此操作的话,可以通过提交分支的方式在Github上帮我增加相应的处理代码,\n" +
-                    "如果您无法处理,但又必须使用Socket的话,可以到Github上提Issues.\n" +
-                    "url=$url\n" +
-                    "本项目GitHub地址如下:https://github.com/ltttttttttttt/Retrofit_SocketCallAdapter")
-        }
-        return SocketCall(
-                manager,
-                this,
-                url,
-                map
-        )
     }
 
     //处理收到的数据(只处理有回调的)

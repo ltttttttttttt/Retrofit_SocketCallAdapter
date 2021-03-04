@@ -15,3 +15,16 @@ inline fun <K, V> MutableMap<K, V>.whileThis(checkRemove: (MutableMap.MutableEnt
         remove(it.key)
     }
 }
+
+/**
+ * 使用List内的数据逐个尝试执行操作并创建对象,直到返回不为空的对象则停止遍历
+ */
+inline fun <T, R : Any> List<T>.tryCreate(run: (T) -> R?): R? {
+    var r: R? = null
+    for (t in this) {
+        r = run(t)
+        if (r != null)
+            break
+    }
+    return r
+}
