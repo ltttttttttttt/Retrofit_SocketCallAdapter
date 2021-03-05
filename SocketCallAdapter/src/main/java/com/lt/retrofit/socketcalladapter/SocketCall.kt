@@ -16,7 +16,7 @@ import java.util.concurrent.Executors
  * effect : 用于Socket请求的Call
  * warning:
  */
-internal class SocketCall<T>(
+open class SocketCall<T>(
         private val manager: IConnectionManager,
         private val adapter: SocketAdapter,
         private val url: String,

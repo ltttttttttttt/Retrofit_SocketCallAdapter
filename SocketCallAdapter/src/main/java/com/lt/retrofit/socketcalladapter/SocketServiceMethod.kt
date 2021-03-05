@@ -13,7 +13,7 @@ import java.lang.reflect.Method
  * effect : 适配动态代理的Method
  * warning:
  */
-class SocketServiceMethod(
+open class SocketServiceMethod(
         private val manager: IConnectionManager,
         private val adapter: SocketAdapter,
         retrofit: Retrofit,
