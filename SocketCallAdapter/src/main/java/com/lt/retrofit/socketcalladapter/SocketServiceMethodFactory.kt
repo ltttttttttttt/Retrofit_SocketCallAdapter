@@ -12,17 +12,14 @@ import java.lang.reflect.Method
  * warning:
  * [manager]OkSocket的管理器
  * [adapter]使用者需要继承SocketCallAdapter实现对应功能
- * [useNewReceiver]如果为true就在该类内部绑定一个新的receiver,数据可能会被处理多遍,较为浪费性能,但是不用进行配置
- *                  如果为false就需要用户手动在收到服务端数据推送后调用[handlerCallback]方法,可以优化性能
  */
 open class SocketServiceMethodFactory(
         private val manager: IConnectionManager,
         private val adapter: SocketAdapter,
-        private val useNewReceiver: Boolean = true,
 ) : OtherServiceMethod.Factory<Any?> {
     override fun createServiceMethod(retrofit: Retrofit,
                                      method: Method,
-                                     requestFactory: RequestFactory): OtherServiceMethod<Any?> {
+                                     requestFactory: RequestFactory): OtherServiceMethod<Any?>? {
         return SocketServiceMethod(
                 manager,
                 adapter,

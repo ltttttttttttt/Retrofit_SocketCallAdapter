@@ -19,12 +19,17 @@ import java.lang.reflect.WildcardType
  */
 fun ByteArray?.getReturnData(retrofit: Retrofit, method: Method): Any? {
     this ?: return null
-    return retrofit.converterFactories().tryCreate {
-        it.responseBodyConverter(
-                getParameterUpperBound(0, method.genericReturnType as ParameterizedType),
-                method.annotations,
-                retrofit
-        )?.convert(ResponseBody.create(MediaType.get("text/plain"), this))
+    return try {
+        retrofit.converterFactories().tryCreate {
+            it.responseBodyConverter(
+                    getParameterUpperBound(0, method.genericReturnType as ParameterizedType),
+                    method.annotations,
+                    retrofit
+            )?.convert(ResponseBody.create(MediaType.get("text/plain"), this))
+        }
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
     }
 }
 

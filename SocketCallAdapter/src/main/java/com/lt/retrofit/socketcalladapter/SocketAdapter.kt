@@ -19,6 +19,7 @@ import java.util.concurrent.ExecutorService
  * [manager]OkSocket的管理器
  * [useNewReceiver]如果为true就在该类内部绑定一个新的receiver,数据可能会被处理多遍,较为浪费性能,但是不用进行配置
  *                  如果为false就需要用户手动在收到服务端数据推送后调用[handlerCallback]方法,可以优化性能
+ *                  且为false可以直接重写方法[getResponseIdAndBodyBytes]并返回null即可,因为其不会被回调了
  */
 abstract class SocketAdapter(
         private val manager: IConnectionManager,
