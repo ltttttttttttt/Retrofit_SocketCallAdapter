@@ -2,6 +2,7 @@ package com.lt.retrofit.socketcalladapter
 
 import com.lt.retrofit.socketcalladapter.util.getReturnData
 import com.xuhao.didi.socket.client.sdk.client.connection.IConnectionManager
+import okhttp3.Request
 import okio.Timeout
 import retrofit2.Call
 import retrofit2.Callback
@@ -30,16 +31,15 @@ open class SocketCall<T>(
 
     /**
      * 检查网络三十秒,如果没有连接成功就 sync抛异常,async就回调false
-     * 传入[asyncCallback]表示async
      */
-    private fun checkConnect(asyncCallback: ((Boolean) -> Unit)? = null) {
+    private inline fun checkConnect(isAsync: Boolean = false, crossinline asyncCallback: (Boolean) -> Unit = { }) {
         if (manager.isConnect) {
-            asyncCallback?.invoke(true)
+            asyncCallback.invoke(true)
             return
         }
         adapter.connectSocket()
         val time = System.currentTimeMillis()
-        if (asyncCallback == null) {
+        if (!isAsync) {
             while (true) {
                 if (adapter.socketIsConnect())
                     return
@@ -116,7 +116,7 @@ open class SocketCall<T>(
      * 异步请求
      */
     override fun enqueue(callback: Callback<T>) {
-        checkConnect {
+        checkConnect(true) {
             if (!it) {
                 adapter.handlerCallbackRunnable {
                     callback.onFailure(this, SocketTimeoutException())
@@ -136,7 +136,7 @@ open class SocketCall<T>(
         }
     }
 
-    override fun clone(): Call<T> = SocketCall(manager, adapter, url, tMap, retrofit, method)
+    override fun clone(): SocketCall<T> = SocketCall(manager, adapter, url, tMap, retrofit, method)
 
     override fun isExecuted(): Boolean = isExecuted
 
@@ -148,8 +148,7 @@ open class SocketCall<T>(
 
     override fun isCanceled(): Boolean = canceled
 
-    override fun request() = null
+    override fun request(): Request? = null
 
     override fun timeout(): Timeout = Timeout.NONE
-
 }
