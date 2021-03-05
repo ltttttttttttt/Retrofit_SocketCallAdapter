@@ -20,7 +20,7 @@ class SocketServiceMethod(
         method: Method,
         requestFactory: RequestFactory,
 ) : OtherServiceMethod<Any?>(retrofit, method, requestFactory) {
-    override fun createCall(url: HttpUrl, requestParameterMap: Map<String?, Any?>?): Call<Any?> {
+    override fun createCall(url: HttpUrl, requestParameterMap: Map<String?, Any?>?, args: Array<out Any>): Call<Any?> {
         val tMap = HashMap<String, Any>()
         requestParameterMap?.entries?.forEach { (k, v) ->
             tMap[k ?: ""] = v ?: ""
