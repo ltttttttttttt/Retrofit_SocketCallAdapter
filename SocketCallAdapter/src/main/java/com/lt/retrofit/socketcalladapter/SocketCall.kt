@@ -17,12 +17,12 @@ import java.util.concurrent.Executors
  * warning:
  */
 open class SocketCall<T>(
-        private val manager: IConnectionManager,
-        private val adapter: SocketAdapter,
-        private val url: String,
-        private val tMap: HashMap<String, Any>,
-        private val retrofit: Retrofit,
-        private val method: Method,
+        val manager: IConnectionManager,
+        val adapter: SocketAdapter,
+        val url: String,
+        val tMap: HashMap<String, Any>,
+        val retrofit: Retrofit,
+        val method: Method,
 ) : Call<T> {
     private var canceled = false
     private var isExecuted = false//是否运行过,一个call对象只允许运行一次

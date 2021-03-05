@@ -14,8 +14,8 @@ import java.lang.reflect.Method
  * [adapter]使用者需要继承SocketCallAdapter实现对应功能
  */
 open class SocketServiceMethodFactory(
-        private val manager: IConnectionManager,
-        private val adapter: SocketAdapter,
+        val manager: IConnectionManager,
+        val adapter: SocketAdapter,
 ) : OtherServiceMethod.Factory<Any?> {
     override fun createServiceMethod(retrofit: Retrofit,
                                      method: Method,

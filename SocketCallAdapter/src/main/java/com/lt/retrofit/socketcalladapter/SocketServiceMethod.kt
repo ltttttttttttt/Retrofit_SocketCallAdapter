@@ -14,8 +14,8 @@ import java.lang.reflect.Method
  * warning:
  */
 open class SocketServiceMethod(
-        private val manager: IConnectionManager,
-        private val adapter: SocketAdapter,
+        val manager: IConnectionManager,
+        val adapter: SocketAdapter,
         retrofit: Retrofit,
         method: Method,
         requestFactory: RequestFactory,

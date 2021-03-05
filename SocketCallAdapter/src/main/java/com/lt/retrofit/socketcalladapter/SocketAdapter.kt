@@ -22,7 +22,7 @@ import java.util.concurrent.ExecutorService
  *                  且为false可以直接重写方法[getResponseIdAndBodyBytes]并返回null即可,因为其不会被回调了
  */
 abstract class SocketAdapter(
-        private val manager: IConnectionManager,
+        val manager: IConnectionManager,
         private val useNewReceiver: Boolean = true,
 ) {
     //用于接收OkSocket返回的数据
