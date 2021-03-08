@@ -33,7 +33,7 @@ open class SocketCall<T>(
      * 检查网络三十秒,如果没有连接成功就 sync抛异常,async就回调false
      */
     private inline fun checkConnect(isAsync: Boolean = false, crossinline asyncCallback: (Boolean) -> Unit = { }) {
-        if (manager.isConnect) {
+        if (adapter.socketIsConnect()) {
             asyncCallback.invoke(true)
             return
         }
@@ -128,7 +128,10 @@ open class SocketCall<T>(
             adapter.createSendDataAndId(url, tMap) { data, id ->
                 requestId = id
                 adapter.addListener(requestId) { bytes: ByteArray, throwable: Throwable? ->
-                    callback.onResponse(this, Response.success(bytes.getReturnData(retrofit, method)) as Response<T>)
+                    if (throwable == null)
+                        callback.onResponse(this, Response.success(bytes.getReturnData(retrofit, method)) as Response<T>)
+                    else
+                        callback.onFailure(this, throwable)
                 }
                 //发送请求
                 manager.send(data)
