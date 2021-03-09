@@ -1,5 +1,6 @@
 package com.lt.retrofit.socketcalladapter
 
+import com.lt.retrofit.socketcalladapter.util.createCancelException
 import com.lt.retrofit.socketcalladapter.util.whileThis
 import com.xuhao.didi.core.iocore.interfaces.ISendable
 import com.xuhao.didi.core.pojo.OriginalData
@@ -7,10 +8,10 @@ import com.xuhao.didi.socket.client.sdk.client.ConnectionInfo
 import com.xuhao.didi.socket.client.sdk.client.action.SocketActionAdapter
 import com.xuhao.didi.socket.client.sdk.client.connection.IConnectionManager
 import okhttp3.FormBody
-import java.io.IOException
 import java.net.SocketTimeoutException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
+import java.util.concurrent.ScheduledExecutorService
 
 /**
  * creator: lt  2021/2/26  lt.dygzs@qq.com
@@ -32,9 +33,14 @@ abstract class SocketAdapter(
         }
     }
 
+    @Volatile
+    internal var threadPoolExecutor: ExecutorService? = null//内部使用的子线程线程池
+
+    @Volatile
+    internal var timeThreadExecutor: ScheduledExecutorService? = null//内部使用的定时线程池
+
     //回调的map,超时x秒 Map<请求id,Pair<插入时间,回调(返回的body字节数据,异常)>>
     private val listenerMap = ConcurrentHashMap<Int, Pair<Long, (ByteArray, Throwable?) -> Unit>>()
-    internal var threadPoolExecutor: ExecutorService? = null//内部使用的子线程线程池
     internal var netTimeOut = 30000L//网络超时时间,默认半分钟
     private val encodedNamesField by lazy { FormBody::class.java.getDeclaredField("encodedNames").apply { isAccessible = true } }//post的keys反射对象
     private val encodedValuesField by lazy { FormBody::class.java.getDeclaredField("encodedValues").apply { isAccessible = true } }//post的values反射对象
@@ -100,6 +106,15 @@ abstract class SocketAdapter(
     }
 
     /**
+     * 设置内部使用的定时线程的线程池,如果不设置则会使用默认定时线程池
+     * [timeThreadExecutor]定时线程线程池
+     */
+    fun setTimeThreadPoolExecutor(timeThreadExecutor: ScheduledExecutorService): SocketAdapter {
+        this.timeThreadExecutor = timeThreadExecutor
+        return this
+    }
+
+    /**
      * 销毁自身并和Socket解除绑定
      */
     fun destroy(): SocketAdapter {
@@ -115,7 +130,7 @@ abstract class SocketAdapter(
      */
     fun cancelAllListener() {
         listenerMap.whileThis {
-            it.value.second(ByteArray(0), IOException("Canceled"))
+            it.value.second(ByteArray(0), createCancelException())
             true
         }
     }

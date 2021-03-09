@@ -1,5 +1,6 @@
 package com.lt.retrofit.socketcalladapter
 
+import com.lt.retrofit.socketcalladapter.util.createCancelException
 import com.lt.retrofit.socketcalladapter.util.getReturnData
 import com.xuhao.didi.socket.client.sdk.client.connection.IConnectionManager
 import okhttp3.Request
@@ -11,6 +12,7 @@ import retrofit2.Retrofit
 import java.lang.reflect.Method
 import java.net.SocketTimeoutException
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 /**
  * creator: lt  2021/2/27  lt.dygzs@qq.com
@@ -31,10 +33,11 @@ open class SocketCall<T>(
 
     /**
      * 检查网络三十秒,如果没有连接成功就 sync抛异常,async就回调false
+     * [asyncCallback]返回null表示没有异常,成功;否则有异常
      */
-    private inline fun checkConnect(isAsync: Boolean = false, crossinline asyncCallback: (Boolean) -> Unit = { }) {
+    private inline fun checkConnect(isAsync: Boolean = false, crossinline asyncCallback: (Exception?) -> Unit = { }) {
         if (adapter.socketIsConnect()) {
-            asyncCallback.invoke(true)
+            asyncCallback.invoke(null)
             return
         }
         adapter.connectSocket()
@@ -48,7 +51,7 @@ open class SocketCall<T>(
                 try {
                     Thread.sleep(100)
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    throw createCancelException(e)
                 }
             }
         } else {
@@ -60,17 +63,17 @@ open class SocketCall<T>(
             threadPool!!.execute {
                 while (true) {
                     if (adapter.socketIsConnect()) {
-                        asyncCallback(true)
+                        asyncCallback(null)
                         return@execute
                     }
                     if (System.currentTimeMillis() - time > adapter.netTimeOut) {
-                        asyncCallback(false)
+                        asyncCallback(SocketTimeoutException())
                         return@execute
                     }
                     try {
                         Thread.sleep(100)
                     } catch (e: Exception) {
-                        e.printStackTrace()
+                        asyncCallback(createCancelException(e))
                     }
                 }
             }
@@ -101,11 +104,13 @@ open class SocketCall<T>(
         while (notFinish) {
             try {
                 whileNumber++
-                if (whileNumber % 20 == 0)
+                //两秒检查一次超时
+                if (whileNumber % 40 == 0)
                     adapter.handlerTimeOutedListener()
                 Thread.sleep(50)
             } catch (e: Exception) {
-                e.printStackTrace()
+                adapter.removeListener(requestId)
+                throw createCancelException(e)
             }
         }
         t?.let { throw it }
@@ -117,9 +122,9 @@ open class SocketCall<T>(
      */
     override fun enqueue(callback: Callback<T>) {
         checkConnect(true) {
-            if (!it) {
+            if (it != null) {
                 adapter.handlerCallbackRunnable {
-                    callback.onFailure(this, SocketTimeoutException())
+                    callback.onFailure(this, it)
                 }
                 return@checkConnect
             }
@@ -135,6 +140,16 @@ open class SocketCall<T>(
                 }
                 //发送请求
                 manager.send(data)
+                //处理超时
+                var timeThreadExecutor = adapter.timeThreadExecutor
+                if (timeThreadExecutor == null) {
+                    val threadPool = Executors.newScheduledThreadPool(1)
+                    timeThreadExecutor = threadPool
+                    adapter.timeThreadExecutor = threadPool
+                }
+                timeThreadExecutor!!.schedule({
+                    adapter.handlerTimeOutedListener()
+                }, adapter.netTimeOut + 100, TimeUnit.MILLISECONDS)
             }
         }
     }
