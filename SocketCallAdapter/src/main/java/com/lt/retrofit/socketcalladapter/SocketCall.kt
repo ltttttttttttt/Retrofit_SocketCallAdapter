@@ -161,7 +161,7 @@ open class SocketCall<T>(
     override fun cancel() {
         canceled = true
         // 取消请求(移除回调)
-        adapter.removeListener(requestId)
+        adapter.removeListener(requestId)?.invoke(ByteArray(0), createCancelException())
     }
 
     override fun isCanceled(): Boolean = canceled

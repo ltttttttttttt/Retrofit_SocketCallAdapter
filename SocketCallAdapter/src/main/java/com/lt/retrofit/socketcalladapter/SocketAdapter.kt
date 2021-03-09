@@ -166,9 +166,10 @@ abstract class SocketAdapter(
     }
 
     //移除回调
-    internal fun removeListener(id: Int) {
-        listenerMap.remove(id)
+    internal fun removeListener(id: Int): ((ByteArray, Throwable?) -> Unit)? {
+        val remove = listenerMap.remove(id)
         handlerTimeOutedListener()
+        return remove?.second
     }
 
     //处理超时的回调,将其从map中移除并回调一个SocketTimeoutException
